@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>CURA (medical bot)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Fonts & Bootstrap -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" rel="stylesheet"/>
+
+  <style>
+    /* ====== THEME (light/dark via CSS variables) ====== */
+    :root{
+      --bg1: #1b2432;
+      --bg2: #0f1622;
+      --card: rgba(19, 25, 38, 0.66);
+      --card-border: rgba(255,255,255,0.08);
+      --text: #eaf1ff;
+      --muted: #98a6bd;
+      --bubble-in: #59d189;      /* user (green) */
+      --bubble-out: #59a5ff;     /* bot (blue) */
+      --shadow: 0 18px 50px rgba(0,0,0,.5);
+      --accent: #6f7dff;
+    }
+    body.light{
+      --bg1: #e7edf8;
+      --bg2: #eef3fb;
+      --card: rgba(255,255,255,0.75);
+      --card-border: rgba(0,0,0,0.06);
+      --text: #0b1531;
+      --muted: #4e5a70;
+      --bubble-in: #4cd173;
+      --bubble-out: #4e93ff;
+      --shadow: 0 18px 40px rgba(0,0,0,.15);
+      --accent: #5168ff;
+    }
+
+    /* ====== GLOBAL + ANIMATED BACKGROUND ====== */
+    html,body{height:100%}
+    body{
+      margin:0; font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color: var(--text);
+      background: linear-gradient(120deg, var(--bg1), var(--bg2));
+      background-size: 200% 200%;
+      animation: bgFlow 18s ease-in-out infinite;
+    }
+    @keyframes bgFlow{
+      0%{ background-position: 0% 50% }
+      50%{ background-position: 100% 50% }
+      100%{ background-position: 0% 50% }
+    }
+
+    /* Subtle pattern overlay */
+    .noise::before{
+      content:""; position: fixed; inset:0; z-index:0;
+      background-image:
+        radial-gradient(1200px 600px at 80% -10%, rgba(111,125,255,0.20), transparent 60%),
+        radial-gradient(900px 500px at -10% 110%, rgba(89,209,137,0.20), transparent 60%);
+      mix-blend-mode: screen; pointer-events:none;
+    }
+
+    /* ====== CARD ====== */
+    .chat{
+      margin: 48px auto;
+    }
+    .card{
+      height: 70vh; min-height: 560px;
+      border-radius: 24px !important;
+      background: var(--card) !important;
+      border: 1px solid var(--card-border);
+      backdrop-filter: blur(10px) saturate(120%);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      position: relative;
+      z-index: 1;
+      animation: floatUp .6s cubic-bezier(.22,1,.36,1);
+    }
+    @keyframes floatUp{from{transform:translateY(10px);opacity:0}to{transform:none;opacity:1}}
+
+    .card-header{
+      border: none !important;
+      padding: 16px 18px;
+      background: transparent;
+    }
+    .card-footer{
+      border: none !important;
+      background: transparent;
+      padding: 14px 16px;
+    }
+
+    /* ====== HEADER ====== */
+    .img_cont{
+      height: 60px; width: 60px; position: relative;
+    }
+    .user_img{
+      height: 60px; width: 60px; border-radius: 50%;
+      border: 2px solid rgba(255,255,255,.85);
+      box-shadow: 0 8px 22px rgba(0,0,0,.35);
+      object-fit: cover;
+    }
+    .online_icon{
+      position: absolute; right: 6px; bottom: 4px;
+      height: 14px; width: 14px; background: #28d17c; border-radius: 50%;
+      border: 2px solid #fff; box-shadow: 0 0 0 0 rgba(40,209,124,0.7);
+      animation: ping 1.8s infinite;
+    }
+    @keyframes ping{
+      0% { box-shadow: 0 0 0 0 rgba(40,209,124,0.6) }
+      70% { box-shadow: 0 0 0 10px rgba(40,209,124,0) }
+      100% { box-shadow: 0 0 0 0 rgba(40,209,124,0) }
+    }
+    .user_info span{
+      display:block; font-weight:700; font-size:20px;
+    }
+    .user_info p{
+      margin:0; color: var(--muted); font-size: 12px;
+    }
+
+    /* Theme toggle */
+    .theme-toggle{
+      margin-left:auto; cursor:pointer; user-select:none;
+      width: 46px; height: 30px; border-radius: 20px; position: relative;
+      background: rgba(255,255,255,.08); border: 1px solid var(--card-border);
+    }
+    .theme-toggle::after{
+      content:""; position:absolute; top:3px; left:3px;
+      width: 24px; height: 24px; border-radius:50%;
+      background: #fff; transition: transform .25s ease;
+    }
+    body.light .theme-toggle::after{ transform: translateX(16px) }
+
+    /* ====== CHAT BODY ====== */
+    .msg_card_body{
+      height: calc(70vh - 160px);
+      overflow-y: auto; padding: 12px 16px 28px;
+      scroll-behavior: smooth;
+    }
+    /* Scrollbar */
+    .msg_card_body::-webkit-scrollbar{ width: 10px }
+    .msg_card_body::-webkit-scrollbar-thumb{
+      background: rgba(255,255,255,.12); border-radius: 10px
+    }
+
+    /* Bubbles */
+    .msg_cotainer, .msg_cotainer_send{
+      position: relative; padding: 12px 14px; min-width: 40px; max-width: 72%;
+      border-radius: 16px; color: #fff; line-height: 1.35; font-size: 14px;
+      box-shadow: 0 10px 20px rgba(0,0,0,.25);
+      animation: bubbleIn .26s cubic-bezier(.22,1,.36,1);
+      word-wrap: break-word;
+    }
+    /* Bot left bubble */
+    .msg_cotainer{ background: linear-gradient(160deg, var(--bubble-out), #3e77ff) }
+    /* User right bubble */
+    .msg_cotainer_send{ background: linear-gradient(160deg, var(--bubble-in), #3ecf8e) }
+
+    @keyframes bubbleIn{
+      from{ opacity:0; transform: translateY(8px) scale(.98) }
+      to{ opacity:1; transform: none }
+    }
+
+    .msg_time, .msg_time_send{
+      position: absolute; bottom: -16px; font-size: 10px; opacity: .65;
+      color: var(--muted);
+    }
+    .msg_time{ left: 8px }
+    .msg_time_send{ right: 8px }
+
+    /* Avatars within thread */
+    .img_cont_msg{ height: 36px; width: 36px }
+    .user_img_msg{
+      height: 36px; width: 36px; border-radius: 50%;
+      border: 1.5px solid rgba(255,255,255,.8); object-fit: cover;
+      box-shadow: 0 6px 16px rgba(0,0,0,.28);
+    }
+
+    /* Typing indicator */
+    .typing{
+      display:inline-flex; gap:6px; align-items:center;
+      padding: 10px 14px; border-radius: 16px;
+      background: rgba(255,255,255,.08);
+      border: 1px solid var(--card-border);
+      color: var(--muted);
+      animation: bubbleIn .2s ease;
+    }
+    .dot{ width:7px; height:7px; border-radius:50%; background: currentColor; opacity:.6; animation: blink 1.2s infinite }
+    .dot:nth-child(2){ animation-delay:.2s } .dot:nth-child(3){ animation-delay:.4s }
+    @keyframes blink{ 0%,80%,100%{opacity:.3} 40%{opacity:1} }
+
+    /* ====== COMPOSER ====== */
+    .type_msg{
+      background: rgba(255,255,255,.06) !important;
+      border: 1px solid var(--card-border) !important;
+      color: var(--text) !important;
+      height: 54px !important;
+      border-radius: 14px 0 0 14px !important;
+    }
+    .type_msg::placeholder{ color: var(--muted) }
+    .type_msg:focus{ box-shadow: none !important }
+
+    .send_btn{
+      border: 1px solid var(--card-border) !important;
+      background: radial-gradient(120% 140% at 30% 20%, #9aa8ff, var(--accent)) !important;
+      color: #fff !important; font-weight: 700;
+      border-radius: 0 14px 14px 0 !important;
+      transition: transform .06s ease, box-shadow .2s ease;
+      box-shadow: 0 10px 20px rgba(112, 130, 255, .32);
+    }
+    .send_btn:active{ transform: translateY(1px) }
+
+    /* Small helper */
+    .badge-soft{
+      font-size: 11px; padding: 6px 10px; border-radius: 999px;
+      background: rgba(255,255,255,.08); border:1px solid var(--card-border); color: var(--muted);
+    }
+
+    @media (max-width: 576px){
+      .card{ height: 78vh; min-height: 560px }
+      .msg_card_body{ height: calc(78vh - 160px) }
+      .msg_cotainer, .msg_cotainer_send{ max-width: 82% }
+    }
+  </style>
+</head>
+<body class="noise">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-md-10 col-lg-8 chat">
+        <div class="card">
+          <!-- Header -->
+          <div class="card-header">
+            <div class="d-flex align-items-center">
+              <div class="img_cont">
+                <!-- Doctor avatar -->
+                <img src="https://cdn-icons-png.flaticon.com/512/387/387569.png" class="user_img" alt="Doctor"/>
+                <span class="online_icon" title="online"></span>
+              </div>
+              <div class="user_info ml-3">
+                <span>CURA (medical bot)</span>
+                <p>Your AI medical assistant · <span class="badge-soft">Beta</span></p>
+              </div>
+
+              <!-- Theme toggle -->
+              <div class="theme-toggle ml-auto" id="themeToggle" title="Toggle light/dark"></div>
+            </div>
+          </div>
+
+          <!-- Chat body -->
+          <div id="messageFormeight" class="card-body msg_card_body">
+            <!-- Empty state -->
+            <div class="d-flex justify-content-center">
+              <div class="typing">
+                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+                <span class="ml-2">Say hi to start…</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Composer -->
+          <div class="card-footer">
+            <form id="messageArea" class="input-group">
+              <input id="text" name="msg" autocomplete="off" class="form-control type_msg" placeholder="Ask a health question… (e.g., What are symptoms of dehydration?)" required/>
+              <div class="input-group-append">
+                <button type="submit" id="send" class="input-group-text send_btn">
+                  <i class="fas fa-paper-plane"></i>
+                </button>
+              </div>
+            </form>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- JS (jQuery + Bootstrap + FontAwesome) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+  <script defer src="https://use.fontawesome.com/releases/v5.5.0/js/all.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js"></script>
+
+  <script>
+    (function(){
+      const $form = $("#messageArea");
+      const $input = $("#text");
+      const $body = $("#messageFormeight");
+
+      // Ensure we always scroll to bottom
+      function scrollToBottom(){
+        $body.stop().animate({ scrollTop: $body[0].scrollHeight }, 250);
+      }
+
+      // Typing indicator
+      function addTyping(){
+        const html = `
+          <div class="d-flex justify-content-start mb-4" id="typingRow">
+            <div class="img_cont_msg">
+              <img src="https://cdn-icons-png.flaticon.com/512/387/387569.png" class="rounded-circle user_img_msg" alt="CURA">
+            </div>
+            <div class="msg_cotainer">
+              <span class="typing"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>
+              <span class="msg_time">typing…</span>
+            </div>
+          </div>`;
+        $body.append(html);
+        scrollToBottom();
+      }
+      function removeTyping(){ $("#typingRow").remove(); }
+
+      // Submit handler
+      $form.on("submit", function(e){
+        e.preventDefault();
+        const rawText = $input.val().trim();
+        if(!rawText) return;
+
+        // Timestamp
+        const dt = new Date();
+        const hh = String(dt.getHours()).padStart(2, "0");
+        const mm = String(dt.getMinutes()).padStart(2, "0");
+        const stamp = `${hh}:${mm}`;
+
+        // User bubble
+        const userHtml = `
+          <div class="d-flex justify-content-end mb-4">
+            <div class="msg_cotainer_send">${rawText}<span class="msg_time_send">${stamp}</span></div>
+            <div class="img_cont_msg">
+              <img src="https://i.ibb.co/d5b84Xw/Untitled-design.png" class="rounded-circle user_img_msg" alt="You">
+            </div>
+          </div>`;
+        $body.append(userHtml);
+        $input.val("");
+        scrollToBottom();
+
+        // Show typing
+        addTyping();
+
+        // Send to Flask
+        $.ajax({
+          type: "POST",
+          url: "/get",
+          data: { msg: rawText },
+          success: function(data){
+            removeTyping();
+            const botHtml = `
+              <div class="d-flex justify-content-start mb-4">
+                <div class="img_cont_msg">
+                  <img src="https://cdn-icons-png.flaticon.com/512/387/387569.png" class="rounded-circle user_img_msg" alt="CURA">
+                </div>
+                <div class="msg_cotainer">${data}<span class="msg_time">${stamp}</span></div>
+              </div>`;
+            $body.append($.parseHTML(botHtml));
+            scrollToBottom();
+          },
+          error: function(xhr){
+            removeTyping();
+            const failHtml = `
+              <div class="d-flex justify-content-start mb-4">
+                <div class="img_cont_msg">
+                  <img src="https://cdn-icons-png.flaticon.com/512/387/387569.png" class="rounded-circle user_img_msg" alt="CURA">
+                </div>
+                <div class="msg_cotainer">Sorry, I couldn’t reach the server. (${xhr.status || "network error"})<span class="msg_time">${stamp}</span></div>
+              </div>`;
+            $body.append(failHtml);
+            scrollToBottom();
+          }
+        });
+      });
+
+      // Theme toggle
+      const toggle = document.getElementById("themeToggle");
+      toggle.addEventListener("click", () => document.body.classList.toggle("light"));
+
+      // Enter key quality-of-life (already handled by form submit, but prevents stray newline on some browsers)
+      $input.on("keydown", function(e){
+        if(e.key === "Enter"){ e.preventDefault(); $form.submit(); }
+      });
+    })();
+  </script>
+</body>
+</html>
