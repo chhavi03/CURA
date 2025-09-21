@@ -13,8 +13,8 @@ import os
 app = Flask(__name__)
 
 load_dotenv()
-PINECONE_API_KEY = "pcsk_5Yh2gb_TvJyvRMgWMZRYkXKEj4jerjXtYt6VSBCPJEpWgYPpnaKY1hrDLtWaPuTrGsGw1p"
-GOOGLE_API_KEY  = "AIzaSyBxdfwEpmhcWV-OtIrmOWSomp-k4ScIB4g"
+PINECONE_API_KEY = "ENTER YOU OWN KEY HERE"
+GOOGLE_API_KEY  = "ENTER YOU OWN KEY HERE"
 
 
 embeddings = download_hugging_face_embeddings()
@@ -54,3 +54,4 @@ def chat():
 
 if __name__ == '__main__':
     app.run(host="0.0.0.0", port =8080, debug=True)
+
