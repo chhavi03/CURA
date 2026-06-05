@@ -1,4 +1,3 @@
-
 # CURA – AI Medical Chatbot 🩺🤖
 
 CURA is an **AI-powered medical chatbot** that uses **Retrieval-Augmented Generation (RAG)** to deliver accurate, context-aware healthcare Q&A.  
